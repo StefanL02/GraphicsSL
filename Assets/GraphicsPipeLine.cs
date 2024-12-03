@@ -19,6 +19,8 @@ public class GraphicsPipeLine : MonoBehaviour
     private float angle;
     Vector2 a2, b2, c2;
     Vector2 A, B;
+    Vector2 a_t, A_t, B_t, b_t, c_t;
+    public Texture2D texture_file;
 
     // Start is called before the first frame update
     void Start()
@@ -364,7 +366,7 @@ public class GraphicsPipeLine : MonoBehaviour
      Vector2Int pixelize(Vector2 point)
     {
         //cast to int
-        return new Vector2Int((int)MathF.Round((point.x + 1) * 1023 / 2), (int)MathF.Round((point.y + 1) * 1023 / 2));
+        return new Vector2Int((int)MathF.Round((point.x + 1) * 1023 / 2), (int)MathF.Round((point.y+1) * 1023 / 2));
     }
 
      Vector2 project(Vector4 point)
@@ -400,12 +402,18 @@ public class GraphicsPipeLine : MonoBehaviour
         }
     }
 
-    private Color GetColorFromTexture(int x_p, int y_p)
+    private Color GetColorFromTexture(int x_p, int y_p) 
     {
         float x = x_p - a2.x;
         float y = y_p - a2.y;
         float r =(x*B.y - y*B.x)/(A.x*B.y-A.y*B.x);
         float s =(A.x*y - x*A.y)/(A.x*B.y-A.y*B.x);
+
+        Vector2 texture_point = a_t + r * A_t + s * B_t;
+       // texture_point = new Vector2(texture_point.x *512, texture_point.y*512);
+       
+        Color color = texture_file.GetPixel((int)texture_point.x,512 - (int)texture_point.y);
+        return color;
 
     }
 
@@ -422,8 +430,19 @@ public class GraphicsPipeLine : MonoBehaviour
         Matrix4x4 Super = Mrot * M;
         List<Vector4> newVerts = applyTransformation(convertToHomg(myModel.vertices), M);
 
-        foreach (Vector3Int face in myModel.faces)
+        for (int i = 0; i <myModel.faces.Count; i++)
         {
+            Vector3Int face = myModel.faces[i];
+            Vector3Int texture = myModel.texture_index_list[i];
+
+            a_t = myModel.texture_coordinates[texture.x];
+            b_t = myModel.texture_coordinates[texture.y];
+            c_t = myModel.texture_coordinates[texture.z];
+            a_t = convertRelativeTexture(a_t);
+            b_t = convertRelativeTexture(b_t);
+            c_t = convertRelativeTexture(c_t);
+
+
             Vector3 a = newVerts[face.x]; // newVerts[face.y] - newVerts[face.x];
             Vector3 b = newVerts[face.y]; //newVerts[face.z] - newVerts[face.y];
             Vector3 c = newVerts[face.z];
@@ -431,7 +450,11 @@ public class GraphicsPipeLine : MonoBehaviour
              b2 = pixelize( project(b));
              c2 = pixelize( project(c));
              A = b2 - a2;
-             B = c2 - b2;
+             B = c2 - a2;
+
+            A_t = b_t - a_t; 
+            B_t = c_t - a_t;
+
             if  (Vector3.Cross(b2-a2, c2-b2).z<0)
             {
                 EdgeTable edgeTable = new EdgeTable();
@@ -445,5 +468,10 @@ public class GraphicsPipeLine : MonoBehaviour
 
         // Apply texture
         screenTexture.Apply();
+    }
+
+    private Vector2 convertRelativeTexture(Vector2 v)
+    {
+     return new Vector2(v.x * 512,512 -  v.y *512);
     }
 }
